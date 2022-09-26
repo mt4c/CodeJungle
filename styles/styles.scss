@@ -8,13 +8,13 @@ body {
     font-size: 20px;
 }
 
-#jungle-wrapper {
+.jungle-wrapper {
     position: relative;
     width: 100vw;
     height: 100vh;
     background-color: #000;
 
-    #jungle-toolbar {
+    .jungle-toolbar {
         display: flex;
         position: absolute;
         flex-direction: row;
@@ -71,11 +71,13 @@ body {
         }
     }
 
-    #jungle-field {
+    .jungle-field {
         width: 100%;
         height: 100%;
-        padding-top: 2em;
-
         background-color: #111111;
+
+        .jungle-canvas {
+            display: block;
+        }
     }
 }

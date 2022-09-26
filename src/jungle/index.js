@@ -7,6 +7,9 @@ class Jungle {
     init() {
         this.initUI();
         this.initOpen();
+
+        window.dispatchEvent(new Event('resize'));
+        window.requestAnimationFrame(this.render.bind(this));
     }
 
     initUI() {
@@ -42,12 +45,23 @@ class Jungle {
                 });
 
                 console.log(content);
+                this.imageData = null;
+                this.ui.canvas.clear();
+                this.ui.canvas.printText(content);
+                this.imageData = this.ui.canvas.getImageData();
             }
         });
 
         this.ui.toolbar.buttons['open'].addEventListener('click', () => {
             openInput.click();
         });
+    }
+
+    render() {
+        if (this.imageData) {
+            this.ui.canvas.setImageData(this.imageData);
+        }
+        window.requestAnimationFrame(this.render.bind(this));
     }
 }
 
