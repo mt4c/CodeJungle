@@ -1,3 +1,4 @@
+const { JungleMap } = require('./map');
 const { UI } = require('../ui');
 
 class Jungle {
@@ -48,7 +49,8 @@ class Jungle {
                 this.imageData = null;
                 this.ui.canvas.clear();
                 this.ui.canvas.printText(content);
-                this.imageData = this.ui.canvas.getImageData();
+                this.map = new JungleMap(this.ui.canvas.getImageData())
+                console.log(this.map);
             }
         });
 
@@ -58,8 +60,8 @@ class Jungle {
     }
 
     render() {
-        if (this.imageData) {
-            this.ui.canvas.setImageData(this.imageData);
+        if (this.map) {
+            this.ui.canvas.setImageData(this.map.toImageData());
         }
         window.requestAnimationFrame(this.render.bind(this));
     }
