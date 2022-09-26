@@ -13,7 +13,7 @@ class Toolbar {
 
     constructor(toolbarEle) {
         this.ele = toolbarEle;
-        this.ele.id = 'jungle-toolbar';
+        this.ele.classList.add('jungle-toolbar');
 
         const title = document.createElement('div');
         title.className = 'title';
