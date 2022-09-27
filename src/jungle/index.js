@@ -18,6 +18,11 @@ class Jungle {
         const wrapper = document.createElement('div');
         this.ui = new UI(wrapper);
         document.body.appendChild(wrapper);
+
+        window.addEventListener('resize', () => {
+            this.ui.canvas.resize();
+            this.render();
+        });
     }
 
     initOpen() {
@@ -29,6 +34,9 @@ class Jungle {
         openInput.addEventListener('change', async (event) => {
             const file = event.target.files[0];
             if (file) {
+                this.map = null;
+                this.ui.statusBar.progressBar.setProgress(0);
+
                 const content = await new Promise((resolve, reject) => {
                     try {
                         const reader = new FileReader();
@@ -50,8 +58,17 @@ class Jungle {
                 this.imageData = null;
                 this.ui.canvas.clear();
                 this.ui.canvas.printText(content);
-                this.map = new JungleMap(this.ui.canvas.getImageData());
+
+                this.ui.statusBar.progressBar.setProgress(20);
+
+                this.map = new JungleMap();
+                await this.map.loadImageData(this.ui.canvas.getImageData(), progress => {
+                    this.ui.statusBar.progressBar.setProgress(20 + Math.trunc(progress * 0.8));
+                });
                 this.ui.canvas.resize();
+                this.render(true);
+
+                this.ui.statusBar.progressBar.setProgress(100);
                 console.log(this.map);
             }
         });
@@ -61,12 +78,14 @@ class Jungle {
         });
     }
 
-    render() {
-        if (this.map) {
+    render(keep = false) {
+        if (this.map && this.map.loaded) {
             // TODO only render the area in viewport
             this.ui.canvas.setImageData(this.map.toImageData());
         }
-        window.requestAnimationFrame(this.render.bind(this));
+        if (keep) {
+            window.requestAnimationFrame(this.render.bind(this));
+        }
     }
 }
 

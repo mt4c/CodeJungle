@@ -5,10 +5,6 @@ class Canvas {
         this.parentEle = this.ele.parentNode;
 
         this.context = this.ele.getContext('2d');
-
-        window.addEventListener('resize', () => {
-            this.resize();
-        }, false);
     }
 
     resize(width, height) {

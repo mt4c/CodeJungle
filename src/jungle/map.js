@@ -1,85 +1,36 @@
-const { Color } = require("./entity/color");
-const { Wall } = require("./entity/wall");
-
-const PADDING_SIZE = 30;
-
 class JungleMap {
-    constructor(imageData) {
-        this.map = [];
+    constructor() {
+        this.loaded = false;
+    }
 
-        // imageData to map
-        let ptr = 0;
-        let minX = Infinity;
-        let minY = Infinity;
-        let maxX = -Infinity;
-        let maxY = -Infinity;
-        for (let i = 0; i < imageData.height; i++) {
-            const row = [];
-            for (let j = 0; j < imageData.width; j++) {
-                const channels = imageData.data.slice(ptr, ptr + 4);
-                if (channels.every(ch => ch === 0)) {
-                    row.push(null);
+    async loadImageData(imageData, cb) {
+        const result = await new Promise((resolve, reject) => {
+            const worker = new Worker(new URL('../worker/map-worker.js', import.meta.url));
+
+            worker.addEventListener('message', msg => {
+                if (msg.data.progress === 100) {
+                    worker.terminate();
+                    resolve(msg.data);
                 } else {
-                    row.push(new Wall(new Color(...channels)));
-                    minX = Math.min(minX, j);
-                    minY = Math.min(minY, i);
-                    maxX = Math.max(maxX, j);
-                    maxY = Math.max(maxY, i);
+                    cb(msg.data.progress);
                 }
-                ptr += 4;
-            }
-            this.map.push(row);
-        }
+            });
 
-        console.log(imageData.width, imageData.height);
-        console.log(minX, minY, maxX, maxY);
+            worker.addEventListener('error', err => {
+                worker.terminate();
+                reject(err);
+            });
 
-        // crop
-        if (minX > PADDING_SIZE) {
-            const shiftCount = minX - PADDING_SIZE;
-            for (let i = 0; i < this.map.length; i++) {
-                this.map[i] = this.map[i].slice(shiftCount);
-            }
-        }
+            worker.postMessage({ imageData });
+        });
 
-        if (imageData.width - maxX > PADDING_SIZE) {
-            const popCount = imageData.width - maxX - PADDING_SIZE
-            for (let i = 0; i < this.map.length; i++) {
-                this.map[i] = this.map[i].slice(0, -popCount);
-            }
-        }
+        console.log(result);
 
-        if (minY > PADDING_SIZE) {
-            this.map = this.map.slice(minY - PADDING_SIZE);
-        }
+        this.width = result.width;
+        this.height = result.height;
+        this.map = result.map;
 
-        if (imageData.height - maxY > PADDING_SIZE) {
-            this.map = this.map.slice(0, PADDING_SIZE - imageData.height + maxY);
-        }
-
-        // padding
-        if (minX < PADDING_SIZE) {
-            const unshiftCount = PADDING_SIZE - minX;
-            this.map.forEach(row => row.unshift(...Array(unshiftCount).fill(null)));
-        }
-
-        if (imageData.width - maxX < PADDING_SIZE) {
-            const pushCount = PADDING_SIZE - imageData.width + maxX;
-            this.map.forEach(col => col.push(...Array(pushCount).fill(null)));
-        }
-
-        if (minY < PADDING_SIZE) {
-            this.map.unshift(...Array(PADDING_SIZE - minY).fill(0).map(() => Array(this.map[0].length).fill(null)));
-        }
-
-        if (imageData.height - maxY < PADDING_SIZE) {
-            this.map.push(...Array(PADDING_SIZE - imageData.height + maxY).fill(0).map(() => Array(this.map[0].length).fill(null)));
-        }
-
-        // add boundary
-
-        this.width = this.map[0].length;
-        this.height = this.map.length;
+        this.loaded = true;
     }
 
     toImageData() {
