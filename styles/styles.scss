@@ -71,10 +71,22 @@ body {
         }
     }
 
+    .jungle-status-bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 2em;
+        color: #eee;
+        background-color: #1F1F1F;
+        overflow: hidden;
+    }
+
     .jungle-field {
         width: 100%;
         height: 100%;
         background-color: #111111;
+        overflow: hidden;
 
         .jungle-canvas {
             display: block;

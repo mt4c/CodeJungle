@@ -5,20 +5,19 @@ class Canvas {
         this.parentEle = this.ele.parentNode;
 
         this.context = this.ele.getContext('2d');
-        //this.context.font = "30px Impact";
 
-        this.initResize();
+        window.addEventListener('resize', () => {
+            this.resize();
+        }, false);
     }
 
-    initResize() {
-        window.addEventListener('resize', () => {
-            const width = this.parentEle.clientWidth;
-            const height = this.parentEle.clientHeight;
-            this.ele.setAttribute('width', width);
-            this.ele.setAttribute('height', height);
-            this.context.width = width;
-            this.context.height = height;
-        }, false);
+    resize(width, height) {
+        width = width || this.parentEle.clientWidth;
+        height = height || this.parentEle.clientHeight;
+        this.ele.setAttribute('width', width);
+        this.ele.setAttribute('height', height);
+        this.context.width = width;
+        this.context.height = height;
     }
 
     clear() {
@@ -26,9 +25,33 @@ class Canvas {
     }
 
     printText(text) {
-        const lines = text.split('\n');
+        // split the text
+        let lines = []
+        let buf = '';
+        for (const char of text) {
+            if (char === '\n') {
+                if (buf.length > 0) {
+                    lines.push(buf);
+                    buf = '';
+                }
+            } else {
+                buf += char;
+                if (buf.length === 200) {
+                    lines.push(buf);
+                    buf = '';
+                }
+            }
+        }
+        lines.push(buf);
+
+        if (lines.length > 200) {
+            lines = lines.slice(0, 201);
+        }
+
+        this.resize(4060, 30 * lines.length + 60);
+
         const x = 30;
-        let y = 60;
+        let y = 30;
         this.context.save();
         this.context.fillStyle = '#fff';
         this.context.font = "20px Consolas";

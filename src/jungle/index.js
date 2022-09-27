@@ -10,7 +10,6 @@ class Jungle {
         this.initOpen();
 
         window.dispatchEvent(new Event('resize'));
-        window.requestAnimationFrame(this.render.bind(this));
     }
 
     initUI() {
@@ -42,6 +41,8 @@ class Jungle {
                         reader.readAsText(file, 'utf-8');
                     } catch (err) {
                         reject(err);
+                    } finally {
+                        openInput.value = null;
                     }
                 });
 
@@ -49,7 +50,8 @@ class Jungle {
                 this.imageData = null;
                 this.ui.canvas.clear();
                 this.ui.canvas.printText(content);
-                this.map = new JungleMap(this.ui.canvas.getImageData())
+                this.map = new JungleMap(this.ui.canvas.getImageData());
+                this.ui.canvas.resize();
                 console.log(this.map);
             }
         });
@@ -61,6 +63,7 @@ class Jungle {
 
     render() {
         if (this.map) {
+            // TODO only render the area in viewport
             this.ui.canvas.setImageData(this.map.toImageData());
         }
         window.requestAnimationFrame(this.render.bind(this));
