@@ -14,7 +14,7 @@ class ProgressBar {
         }
         num = Math.min(num, 100);
         num = Math.max(num, 0);
-        this.progressEle.style.width = num + 'px';
+        this.progressEle.style.width = num + '%';
     }
 }
 

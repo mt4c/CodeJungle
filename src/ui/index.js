@@ -20,6 +20,14 @@ class UI {
         this.field = new Field(fieldEle);
         this.canvas = this.field.canvas;
     }
+
+    setLoading(loading) {
+        if (loading) {
+            this.ele.classList.add('loading');
+        } else {
+            this.ele.classList.remove('loading');
+        }
+    }
 }
 
 module.exports = { UI }
