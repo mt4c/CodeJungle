@@ -1,7 +1,8 @@
 const { Color } = require('./color');
 
 class Entity {
-    constructor() {
+    constructor(position) {
+        this.position = position;
         this.color = Color.transparent();
     }
 }

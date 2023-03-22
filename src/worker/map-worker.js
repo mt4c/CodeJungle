@@ -1,5 +1,6 @@
 const { Color } = require('../jungle/entity/color');
 const { Wall } = require('../jungle/entity/wall');
+const { Position } = require('../jungle/entity/position');
 
 const PADDING_SIZE = 30;
 
@@ -13,14 +14,13 @@ const imageData2Map = (imageData, cb) => {
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
+    let width = imageData.width;
     for (let i = 0; i < imageData.height; i++) {
         const row = [];
         for (let j = 0; j < imageData.width; j++) {
             const channels = imageData.data.slice(ptr, ptr + 4);
-            if (channels.every(ch => ch === 0)) {
-                row.push(null);
-            } else {
-                row.push(new Wall(new Color(...channels)));
+            if (!channels.every(ch => ch === 0)) {
+                row.push(new Wall(new Position(j, i), new Color(...channels)));
                 minX = Math.min(minX, j);
                 minY = Math.min(minY, i);
                 maxX = Math.max(maxX, j);
@@ -35,69 +35,65 @@ const imageData2Map = (imageData, cb) => {
     cb({ progress: 60 });
 
     // crop
-    if (minX > PADDING_SIZE) {
-        const shiftCount = minX - PADDING_SIZE;
-        for (let i = 0; i < map.length; i++) {
-            map[i] = map[i].slice(shiftCount);
-        }
+
+    if (minY > PADDING_SIZE) {
+        const cropTop = minY - PADDING_SIZE;
+        maxY -= cropTop;
+
+        map = map.slice(cropTop);
     }
 
     cb({ progress: 65 });
 
-    if (imageData.width - maxX > PADDING_SIZE) {
-        const popCount = imageData.width - maxX - PADDING_SIZE
-        for (let i = 0; i < map.length; i++) {
-            map[i] = map[i].slice(0, -popCount);
-        }
+    if (map.length - maxY > PADDING_SIZE) {
+        const cropBottom = maxY - (map.length - PADDING_SIZE);
+
+        map = map.slice(0, cropBottom);
     }
 
     cb({ progress: 70 });
 
-    if (minY > PADDING_SIZE) {
-        map = map.slice(minY - PADDING_SIZE);
+    if (minX > PADDING_SIZE) {
+        const cropLeft = minX - PADDING_SIZE;
+        width -= cropLeft;
+        maxX -= cropLeft;
+
+        for (let i = 0; i < map.length; i++) {
+            for (const entity of map[i]) {
+                entity.position.x -= cropLeft;
+            }
+        }
     }
 
     cb({ progress: 75 });
 
-    if (imageData.height - maxY > PADDING_SIZE) {
-        map = map.slice(0, PADDING_SIZE - imageData.height + maxY);
-    }
-
-    cb({ progress: 80 });
-
-    // padding
-    if (minX < PADDING_SIZE) {
-        const unshiftCount = PADDING_SIZE - minX;
-        map.forEach(row => row.unshift(...Array(unshiftCount).fill(null)));
-    }
-
-    cb({ progress: 85 });
-
-    if (imageData.width - maxX < PADDING_SIZE) {
-        const pushCount = PADDING_SIZE - imageData.width + maxX;
-        map.forEach(col => col.push(...Array(pushCount).fill(null)));
+    if (width - maxX > PADDING_SIZE) {
+        width = maxX + PADDING_SIZE;
     }
 
     cb({ progress: 90 });
 
     if (minY < PADDING_SIZE) {
-        map.unshift(...Array(PADDING_SIZE - minY).fill(0).map(() => Array(map[0].length).fill(null)));
+        const paddingTop = PADDING_SIZE - minY;
+        minY = PADDING_SIZE;
+        maxY += paddingTop;
+
+        map.unshift(...Array(paddingTop).fill(0).map(() => []));
     }
 
     cb({ progress: 95 });
 
-    if (imageData.height - maxY < PADDING_SIZE) {
-        map.push(...Array(PADDING_SIZE - imageData.height + maxY).fill(0).map(() => Array(map[0].length).fill(null)));
+    if (map.length - maxY < PADDING_SIZE) {
+        const paddingBottom = PADDING_SIZE - (map.length - maxY);
+
+        map.push(...Array(paddingBottom).fill(0).map(() => []));
     }
 
-    // add boundary
-
-    const width = map[0].length;
-    const height = map.length;
+    // TODO: add boundary
 
     cb({
         width,
-        height,
+        height: map.length,
         map,
         progress: 100
     });

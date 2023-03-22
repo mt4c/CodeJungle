@@ -36,22 +36,13 @@ class JungleMap {
     toImageData() {
         const dataArr = new Uint8ClampedArray(this.width * this.height * 4);
 
-        let ptr = 0;
         for (let i = 0; i < this.height; i++) {
-            for (let j = 0; j < this.width; j++) {
-                if (!this.map[i][j]) {
-                    dataArr[ptr] = 0;
-                    dataArr[ptr + 1] = 0;
-                    dataArr[ptr + 2] = 0;
-                    dataArr[ptr + 3] = 0;
-                } else {
-                    const color = this.map[i][j].color;
-                    dataArr[ptr] = color.red;
-                    dataArr[ptr + 1] = color.green;
-                    dataArr[ptr + 2] = color.blue;
-                    dataArr[ptr + 3] = color.alpha;
-                }
-                ptr += 4;
+            for (const entity of this.map[i]) {
+                const ptr = (this.width * i + entity.position.x) * 4;
+                dataArr[ptr] = entity.color.red;
+                dataArr[ptr + 1] = entity.color.green;
+                dataArr[ptr + 2] = entity.color.blue;
+                dataArr[ptr + 3] = entity.color.alpha;
             }
         }
 
