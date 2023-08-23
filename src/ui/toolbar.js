@@ -32,6 +32,7 @@ class Toolbar {
 
         const iconEle = icon({ prefix: 'fass', iconName });
         button.innerHTML = iconEle.html;
+        button.setAttribute('title', name);
 
         this.ele.appendChild(button);
 

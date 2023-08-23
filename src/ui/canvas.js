@@ -1,51 +1,74 @@
 class Canvas {
-    constructor(canvasEle) {
-        this.ele = canvasEle;
-        this.ele.classList.add('jungle-canvas');
-        this.parentEle = this.ele.parentNode;
+  constructor(canvasEle) {
+    this.ele = canvasEle;
+    this.ele.classList.add("jungle-canvas");
+    this.parentEle = this.ele.parentNode;
 
-        this.context = this.ele.getContext('2d');
-        //this.context.font = "30px Impact";
+    this.context = this.ele.getContext("2d");
+  }
 
-        this.initResize();
+  resize(width, height) {
+    width = width || this.parentEle.clientWidth;
+    height = height || this.parentEle.clientHeight;
+    this.ele.setAttribute("width", width);
+    this.ele.setAttribute("height", height);
+    this.context.width = width;
+    this.context.height = height;
+  }
+
+  clear() {
+    this.context.clearRect(0, 0, this.ele.width, this.ele.height);
+  }
+
+  printText(text) {
+    // split the text
+    let lines = [];
+    let buf = "";
+    for (const char of text) {
+      if (char === "\n") {
+        if (buf.length > 0) {
+          lines.push(buf);
+          buf = "";
+        }
+      } else {
+        buf += char;
+        if (buf.length === 200) {
+          lines.push(buf);
+          buf = "";
+        }
+      }
+    }
+    lines.push(buf);
+
+    if (lines.length > 200) {
+      lines = lines.slice(0, 201);
     }
 
-    initResize() {
-        window.addEventListener('resize', () => {
-            const width = this.parentEle.clientWidth;
-            const height = this.parentEle.clientHeight;
-            this.ele.setAttribute('width', width);
-            this.ele.setAttribute('height', height);
-            this.context.width = width;
-            this.context.height = height;
-        }, false);
-    }
+    this.resize(4060, 30 * lines.length + 60);
 
-    clear() {
-        this.context.clearRect(0, 0, this.ele.width, this.ele.height);
-    }
+    const x = 30;
+    let y = 30;
+    this.context.save();
+    this.context.fillStyle = "#fff";
+    this.context.font = "20px Consolas";
+    lines.forEach((line) => {
+      this.context.fillText(line, x, y);
+      y += 30;
+    });
+    this.context.restore();
+  }
 
-    printText(text) {
-        const lines = text.split('\n');
-        const x = 30;
-        let y = 60;
-        this.context.save();
-        this.context.fillStyle = '#fff';
-        this.context.font = "20px Consolas";
-        lines.forEach(line => {
-            this.context.fillText(line, x, y);
-            y += 30;
-        })
-        this.context.restore();
-    }
+  copyCanvas(canvas) {
+    this.context.drawImage(canvas, 0, 0);
+  }
 
-    getImageData() {
-        return this.context.getImageData(0, 0, this.ele.width, this.ele.height);
-    }
+  getImageData() {
+    return this.context.getImageData(0, 0, this.ele.width, this.ele.height);
+  }
 
-    setImageData(data) {
-        this.context.putImageData(data, 0, 0);
-    }
+  setImageData(data) {
+    this.context.putImageData(data, 0, 0);
+  }
 }
 
 module.exports = { Canvas };

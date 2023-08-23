@@ -1,83 +1,148 @@
 * {
-    box-sizing: border-box;
+  box-sizing: border-box;
 }
 
 body {
-    padding: 0;
-    margin: 0;
-    font-size: 20px;
+  padding: 0;
+  margin: 0;
+  font-size: 20px;
 }
 
 .jungle-wrapper {
-    position: relative;
-    width: 100vw;
-    height: 100vh;
-    background-color: #000;
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background-color: #000;
+  overflow: hidden;
 
-    .jungle-toolbar {
-        display: flex;
+  .jungle-toolbar {
+    display: flex;
+    position: absolute;
+    flex-direction: row;
+    z-index: 1;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 2em;
+    color: #eee;
+    background-color: #1f1f1f;
+    overflow: hidden;
+
+    .title {
+      margin: 0 1em;
+      line-height: 2em;
+      font-size: 1em;
+      font-family: Consolas;
+      font-weight: bold;
+    }
+
+    .button {
+      position: relative;
+      width: 2em;
+      height: 2em;
+      border: 2px solid transparent;
+      overflow: hidden;
+      text-align: center;
+      line-height: 2em;
+
+      &:hover {
+        border-color: #707070;
+        background-color: #3d3d3d;
+        cursor: pointer;
+      }
+
+      &.open {
+        color: #ffe39e;
+      }
+
+      &.save {
+        color: #6cb5ff;
+      }
+
+      &.run {
+        color: #8ae28a;
+      }
+
+      svg {
         position: absolute;
-        flex-direction: row;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 2em;
-        color: #eee;
-        background-color: #1F1F1F;
-        overflow: hidden;
-
-        .title {
-            margin: 0 1em;
-            line-height: 2em;
-            font-size: 1em;
-            font-family: Consolas;
-            font-weight: bold;
-        }
-
-        .button {
-            position: relative;
-            width: 2em;
-            height: 2em;
-            border: 2px solid transparent;
-            overflow: hidden;
-            text-align: center;
-            line-height: 2em;
-
-            &:hover {
-                border-color: #707070;
-                background-color: #3d3d3d;
-                cursor: pointer;
-            }
-
-            &.open {
-                color: #ffe39e;
-            }
-
-            &.save {
-                color: #6cb5ff;
-            }
-
-            &.run {
-                color: #8ae28a;
-            }
-
-            svg {
-                position: absolute;
-                top: 25%;
-                left: 25%;
-                width: 50%;
-                height: 50%;
-            }
-        }
+        top: 25%;
+        left: 25%;
+        width: 50%;
+        height: 50%;
+      }
     }
+  }
 
+  .jungle-status-bar {
+    display: flex;
+    align-items: center;
+    position: absolute;
+    z-index: 1;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2em;
+    padding: 0 1em;
+    color: #eee;
+    background-color: #1f1f1f;
+    overflow: hidden;
+
+    .placeholder {
+      width: 100px;
+    }
+  }
+
+  .jungle-progress-bar {
+    width: 100px;
+    height: 1em;
+    background-color: #fff;
+
+    .progress {
+      width: 0;
+      height: 100%;
+      background-color: #8ae28a;
+      transition: all 0.5s ease;
+    }
+  }
+
+  .jungle-field {
+    width: 100%;
+    height: 100%;
+    background-color: #111111;
+    overflow: hidden;
+
+    .jungle-canvas {
+      display: block;
+    }
+  }
+
+  &.loading {
     .jungle-field {
-        width: 100%;
-        height: 100%;
-        background-color: #111111;
-
-        .jungle-canvas {
-            display: block;
-        }
+      filter: blur(1px);
     }
+
+    .jungle-progress-bar {
+      .progress {
+        @keyframes blink {
+          0% {
+            background: #8ae28a;
+          }
+
+          50% {
+            background: #adff2f;
+          }
+
+          100% {
+            background: #8ae28a;
+          }
+        }
+
+        animation-name: blink;
+        animation-duration: 1s;
+        animation-iteration-count: infinite;
+        box-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #f0f, 0 0 40px #0ff,
+          0 0 50px #8ae28a, 0 0 60px #8ae28a, 0 0 70px #8ae28a;
+      }
+    }
+  }
 }

@@ -1,70 +1,123 @@
-const { JungleMap } = require('./map');
-const { UI } = require('../ui');
+const { JungleMap } = require("./map");
+const { UI } = require("../ui");
+const text2Image = require("./common/text2image");
 
 class Jungle {
-    constructor() {
-    }
+  constructor() {
+    this.isLoading = false;
+  }
 
-    init() {
-        this.initUI();
-        this.initOpen();
+  init() {
+    this.initUI();
+    this.initOpen();
 
-        window.dispatchEvent(new Event('resize'));
-        window.requestAnimationFrame(this.render.bind(this));
-    }
+    window.dispatchEvent(new Event("resize"));
+  }
 
-    initUI() {
-        document.body.innerHTML = '';
+  initUI() {
+    document.body.innerHTML = "";
 
-        const wrapper = document.createElement('div');
-        this.ui = new UI(wrapper);
-        document.body.appendChild(wrapper);
-    }
+    const wrapper = document.createElement("div");
+    this.ui = new UI(wrapper);
+    document.body.appendChild(wrapper);
 
-    initOpen() {
-        const openInput = document.createElement('input');
-        openInput.type = 'file';
-        openInput.style.display = 'none';
-        document.body.appendChild(openInput);
+    window.addEventListener("resize", () => {
+      this.ui.canvas.resize();
+      this.render();
+    });
+  }
 
-        openInput.addEventListener('change', async (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                const content = await new Promise((resolve, reject) => {
-                    try {
-                        const reader = new FileReader();
+  initOpen() {
+    const openInput = document.createElement("input");
+    openInput.type = "file";
+    openInput.style.display = "none";
+    document.body.appendChild(openInput);
 
-                        reader.addEventListener('load', (event) => {
-                            const content = event.target.result;
-                            resolve(content);
-                        });
+    openInput.addEventListener("change", async (event) => {
+      if (this.isLoading) {
+        return;
+      }
+      const file = event.target.files[0];
+      if (file) {
+        this.setLoading(true);
+        try {
+          this.map = null;
+          this.ui.statusBar.progressBar.setProgress(0);
 
-                        reader.readAsText(file, 'utf-8');
-                    } catch (err) {
-                        reject(err);
-                    }
-                });
+          const content = await new Promise((resolve, reject) => {
+            try {
+              const reader = new FileReader();
 
-                console.log(content);
-                this.imageData = null;
-                this.ui.canvas.clear();
-                this.ui.canvas.printText(content);
-                this.map = new JungleMap(this.ui.canvas.getImageData())
-                console.log(this.map);
+              reader.addEventListener("load", (event) => {
+                const content = event.target.result;
+                resolve(content);
+              });
+
+              reader.readAsText(file, "utf-8");
+            } catch (err) {
+              reject(err);
+            } finally {
+              openInput.value = null;
             }
-        });
+          });
 
-        this.ui.toolbar.buttons['open'].addEventListener('click', () => {
-            openInput.click();
-        });
-    }
+          console.log(content);
+          const printedCanvas = await text2Image(content);
+          this.imageData = null;
+          this.ui.canvas.clear();
+          this.ui.canvas.copyCanvas(printedCanvas);
 
-    render() {
-        if (this.map) {
-            this.ui.canvas.setImageData(this.map.toImageData());
+          this.ui.statusBar.progressBar.setProgress(20);
+
+          this.map = new JungleMap();
+          await this.map.loadImageData(
+            this.ui.canvas.getImageData(),
+            (progress) => {
+              console.log(progress);
+              this.ui.statusBar.progressBar.setProgress(
+                20 + Math.trunc(progress * 0.8)
+              );
+            }
+          );
+          this.ui.canvas.resize();
+          this.render(true);
+
+          this.ui.statusBar.progressBar.setProgress(100);
+          console.log(this.map);
+        } catch (err) {
+          console.error(err);
+        } finally {
+          this.setLoading(false);
         }
-        window.requestAnimationFrame(this.render.bind(this));
+      }
+    });
+
+    this.ui.toolbar.buttons["open"].addEventListener("click", () => {
+      if (this.isLoading) {
+        return;
+      }
+      openInput.click();
+    });
+  }
+
+  setLoading(isLoading) {
+    this.isLoading = isLoading;
+    if (this.isLoading) {
+      this.ui.setLoading(true);
+    } else {
+      this.ui.setLoading(false);
     }
+  }
+
+  render(keep = false) {
+    if (this.map && this.map.loaded) {
+      // TODO only render the area in viewport
+      this.ui.canvas.setImageData(this.map.toImageData());
+    }
+    if (keep) {
+      window.requestAnimationFrame(this.render.bind(this));
+    }
+  }
 }
 
 module.exports = { Jungle };

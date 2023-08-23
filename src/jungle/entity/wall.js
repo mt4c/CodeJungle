@@ -1,8 +1,8 @@
 const { Entity } = require('./entity');
 
 class Wall extends Entity {
-    constructor(color) {
-        super();
+    constructor(position, color) {
+        super(position);
 
         this.color = color;
     }

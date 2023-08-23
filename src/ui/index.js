@@ -1,5 +1,6 @@
 const { Toolbar } = require('./toolbar');
 const { Field } = require('./field');
+const { StatusBar } = require('./status-bar');
 
 class UI {
     constructor(wrapperEle) {
@@ -10,10 +11,22 @@ class UI {
         this.ele.appendChild(toolbarEle);
         this.toolbar = new Toolbar(toolbarEle);
 
+        const statusBarEle = document.createElement('div');
+        this.ele.appendChild(statusBarEle);
+        this.statusBar = new StatusBar(statusBarEle);
+
         const fieldEle = document.createElement('div');
         this.ele.appendChild(fieldEle);
         this.field = new Field(fieldEle);
         this.canvas = this.field.canvas;
+    }
+
+    setLoading(loading) {
+        if (loading) {
+            this.ele.classList.add('loading');
+        } else {
+            this.ele.classList.remove('loading');
+        }
     }
 }
 
