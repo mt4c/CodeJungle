@@ -1,15 +1,22 @@
 const { JungleMap } = require("./map");
 const { UI } = require("../ui");
 const text2Image = require("./common/text2image");
+const { Position } = require("./entity/position");
+const { Player } = require("./entity/player");
 
 class Jungle {
   constructor() {
+    this.loaded = false;
     this.isLoading = false;
+    this.started = false;
+    this.needUpdate = false;
+    this.player = null;
   }
 
   init() {
     this.initUI();
     this.initOpen();
+    this.initRun();
 
     window.dispatchEvent(new Event("resize"));
   }
@@ -20,11 +27,6 @@ class Jungle {
     const wrapper = document.createElement("div");
     this.ui = new UI(wrapper);
     document.body.appendChild(wrapper);
-
-    window.addEventListener("resize", () => {
-      this.ui.canvas.resize();
-      this.render();
-    });
   }
 
   initOpen() {
@@ -39,6 +41,7 @@ class Jungle {
       }
       const file = event.target.files[0];
       if (file) {
+        this.reset();
         this.setLoading(true);
         try {
           this.map = null;
@@ -73,7 +76,6 @@ class Jungle {
           await this.map.loadImageData(
             this.ui.canvas.getImageData(),
             (progress) => {
-              console.log(progress);
               this.ui.statusBar.progressBar.setProgress(
                 20 + Math.trunc(progress * 0.8)
               );
@@ -83,6 +85,8 @@ class Jungle {
           this.render(true);
 
           this.ui.statusBar.progressBar.setProgress(100);
+          this.loaded = true;
+          this.needUpdate = true;
           console.log(this.map);
         } catch (err) {
           console.error(err);
@@ -100,6 +104,25 @@ class Jungle {
     });
   }
 
+  initRun() {
+    this.ui.toolbar.buttons["run"].addEventListener("click", () => {
+      if (this.isLoading || !this.loaded) {
+        return;
+      }
+
+      console.log("Start!");
+      this.spawnPlayer();
+      this.started = true;
+    });
+  }
+
+  spawnPlayer() {
+    const playerPosition = new Position(10, 10);
+    this.player = new Player(playerPosition);
+    this.map.addEntity(this.player, true);
+    console.log(this.map.map);
+  }
+
   setLoading(isLoading) {
     this.isLoading = isLoading;
     if (this.isLoading) {
@@ -109,14 +132,28 @@ class Jungle {
     }
   }
 
-  render(keep = false) {
+  reset() {
+    this.started = false;
+    this.loaded = false;
+    this.needUpdate = false;
+    this.player = null;
+  }
+
+  render() {
     if (this.map && this.map.loaded) {
       // TODO only render the area in viewport
-      this.ui.canvas.setImageData(this.map.toImageData());
+      let doUpdate = false;
+      if (this.needUpdate) {
+        doUpdate = true;
+        this.needUpdate = false;
+      } else if (this.started) {
+        doUpdate = true;
+      }
+      if (doUpdate) {
+        this.ui.canvas.setImageData(this.map.toImageData());
+      }
     }
-    if (keep) {
-      window.requestAnimationFrame(this.render.bind(this));
-    }
+    window.requestAnimationFrame(this.render.bind(this));
   }
 }
 

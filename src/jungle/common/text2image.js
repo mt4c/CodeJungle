@@ -1,5 +1,5 @@
 const hljs = require("highlight.js");
-const html2canvas = require("html2canvas");
+const html2canvas = require("html2canvas-pro");
 
 const text2Image = async (text) => {
   const highlighted = hljs.highlightAuto(text).value;
