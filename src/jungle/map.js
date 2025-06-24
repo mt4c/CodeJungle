@@ -56,6 +56,7 @@ class JungleMap {
 
   toImageData() {
     const dataArr = new Uint8ClampedArray(this.width * this.height * 4);
+    this._currentImageData = dataArr; // Make data array accessible to sprites
 
     for (let i = 0; i < this.height; i++) {
       for (const entity of this.map[i]) {

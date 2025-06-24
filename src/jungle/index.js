@@ -3,6 +3,7 @@ const { UI } = require("../ui");
 const text2Image = require("./common/text2image");
 const { Position } = require("./entity/position");
 const { Player } = require("./entity/player");
+const { PlayerSprite } = require("./entity/sprite/playerSprite");
 
 class Jungle {
   constructor() {
@@ -17,6 +18,7 @@ class Jungle {
     this.initUI();
     this.initOpen();
     this.initRun();
+    this.initKeyboard();
 
     window.dispatchEvent(new Event("resize"));
   }
@@ -116,11 +118,73 @@ class Jungle {
     });
   }
 
+  initKeyboard() {
+    document.addEventListener("keydown", (event) => {
+      if (!this.started || !this.player) {
+        return;
+      }
+
+      const currentPos = this.player.position;
+      let newX = currentPos.x;
+      let newY = currentPos.y;
+
+      // Handle WASD movement
+      switch (event.key.toLowerCase()) {
+        case "w":
+          newY = Math.max(0, currentPos.y - 1);
+          break;
+        case "a":
+          newX = Math.max(0, currentPos.x - 1);
+          break;
+        case "s":
+          newY = Math.min(this.map.height - 1, currentPos.y + 1);
+          break;
+        case "d":
+          newX = Math.min(this.map.width - 1, currentPos.x + 1);
+          break;
+        default:
+          return; // Ignore other keys
+      }
+
+      // Check if the new position is valid (not occupied by a wall)
+      const newPosition = new Position(newX, newY);
+      const entityAtNewPosition = this.map.getEntityByPosition(newPosition);
+
+      if (!entityAtNewPosition || entityAtNewPosition === this.player) {
+        // Remove player from old position
+        this.removePlayerFromMap();
+
+        // Move player to new position
+        this.player.move(newPosition);
+        this.map.addEntity(this.player, true);
+        this.needUpdate = true;
+      }
+
+      // Prevent default browser behavior for these keys
+      event.preventDefault();
+    });
+  }
+
   spawnPlayer() {
     const playerPosition = new Position(10, 10);
     this.player = new Player(playerPosition);
     this.map.addEntity(this.player, true);
+
+    // Create and add player sprite for larger rendering
+    this.playerSprite = new PlayerSprite(this.player, 8); // 8x8 pixel player
+    this.map.sprites.push(this.playerSprite);
+
     console.log(this.map.map);
+  }
+
+  removePlayerFromMap() {
+    if (!this.player) return;
+
+    const row = this.map.map[this.player.position.y];
+    const playerIndex = row.findIndex((entity) => entity === this.player);
+    if (playerIndex !== -1) {
+      row.splice(playerIndex, 1);
+    }
   }
 
   setLoading(isLoading) {
@@ -137,6 +201,12 @@ class Jungle {
     this.loaded = false;
     this.needUpdate = false;
     this.player = null;
+    this.playerSprite = null;
+
+    // Clear sprites from map if it exists
+    if (this.map) {
+      this.map.sprites = [];
+    }
   }
 
   render() {

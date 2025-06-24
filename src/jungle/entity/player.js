@@ -6,7 +6,7 @@ class Player extends Entity {
     super(position);
 
     this.hp = 100;
-    this._color = Color.White();
+    this._color = Color.white();
   }
 
   get color() {
