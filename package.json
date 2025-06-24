@@ -20,8 +20,8 @@
     "webpack-dev-server": "^4.11.1"
   },
   "dependencies": {
-    "@fortawesome/fontawesome-svg-core": "^6.2.0",
-    "@fortawesome/sharp-solid-svg-icons": "^6.2.0",
+    "@fortawesome/fontawesome-svg-core": "^6.7.2",
+    "@fortawesome/free-solid-svg-icons": "^6.7.2",
     "highlight.js": "^11.8.0",
     "html2canvas": "^1.4.1"
   }
