@@ -104,8 +104,8 @@ class JungleMap {
       for (let i = 0; i < token.text.length; i++) {
         const char = token.text[i];
 
-        // Only create entities for visible characters
-        if (char !== " " && char !== "\t") {
+        // Only create entities for visible characters (exclude whitespace and line breaks)
+        if (char !== " " && char !== "\t" && char !== "\n" && char !== "\r") {
           const entity = this.createEntityFromChar(char, x, y);
           entity.tokenType = token.className;
           entity._color = this.getColorForToken(token.className, char);
@@ -313,16 +313,29 @@ class JungleMap {
     const maxAttempts = 100; // Prevent infinite loop
     let attempts = 0;
 
+    // Get canvas dimensions if available
+    const canvasWidth = this.lastRenderedCanvas?.ele?.width || 800;
+    const canvasHeight = this.lastRenderedCanvas?.ele?.height || 600;
+
+    // Calculate safe spawn area within visible canvas bounds
+    const playerRadius = 6; // Default radius for boundary calculation
+    const safeMargin = 10;
+
+    const minX = this.paddingLeft + safeMargin;
+    const minY = this.paddingTop + safeMargin;
+    const maxX = Math.min(
+      this.width * this.cellWidth + this.paddingLeft - playerRadius * 2,
+      canvasWidth - playerRadius * 2 - safeMargin
+    );
+    const maxY = Math.min(
+      this.height * this.cellHeight + this.paddingTop - playerRadius * 2,
+      canvasHeight - playerRadius * 2 - safeMargin
+    );
+
     while (attempts < maxAttempts) {
-      // Generate random position within content area
-      const x =
-        Math.random() *
-          (this.width * this.cellWidth - this.player?.radius * 2 || 12) +
-        this.paddingLeft;
-      const y =
-        Math.random() *
-          (this.height * this.cellHeight - this.player?.radius * 2 || 12) +
-        this.paddingTop;
+      // Generate random position within safe visible area
+      const x = Math.random() * (maxX - minX) + minX;
+      const y = Math.random() * (maxY - minY) + minY;
 
       // Create temporary player to test collision
       const tempPlayer = new Player({ x, y });
@@ -340,11 +353,13 @@ class JungleMap {
       attempts++;
     }
 
-    // Fallback to top-left if no position found
-    console.log("Could not find collision-free spawn position, using default");
+    // Fallback to safe top-left position within visible area
+    console.log(
+      "Could not find collision-free spawn position, using safe default"
+    );
     return {
-      x: this.paddingLeft,
-      y: this.paddingTop,
+      x: minX,
+      y: minY,
     };
   }
 
@@ -372,11 +387,8 @@ class JungleMap {
         ) {
           bullet.destroy();
         } else {
-          // Check collision with entities and damage them
-          const hitEntity = this.getBulletHitEntity(
-            bullet.position.x,
-            bullet.position.y
-          );
+          // Check collision along bullet's path (continuous collision detection)
+          const hitEntity = this.getBulletHitEntityAlongPath(bullet);
           if (hitEntity) {
             const wasDestroyed = hitEntity.hp <= 10; // Will be destroyed after this hit
             hitEntity.takeDamage(10);
@@ -634,6 +646,33 @@ class JungleMap {
       const entityRadius = Math.min(this.cellWidth, this.cellHeight) / 2;
       return distance < entityRadius;
     });
+  }
+
+  getBulletHitEntityAlongPath(bullet) {
+    // Calculate bullet's previous position
+    const prevX = bullet.position.x - bullet.direction.x * bullet.speed;
+    const prevY = bullet.position.y - bullet.direction.y * bullet.speed;
+
+    // Current position
+    const currX = bullet.position.x;
+    const currY = bullet.position.y;
+
+    // Check multiple points along the path for continuous collision detection
+    const steps = Math.max(1, Math.ceil(bullet.speed)); // At least 1 step, more for fast bullets
+
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps; // Interpolation factor from 0 to 1
+      const checkX = prevX + (currX - prevX) * t;
+      const checkY = prevY + (currY - prevY) * t;
+
+      // Check for collision at this interpolated position
+      const hitEntity = this.getBulletHitEntity(checkX, checkY);
+      if (hitEntity) {
+        return hitEntity;
+      }
+    }
+
+    return null;
   }
 }
 

@@ -21,7 +21,7 @@ class Entity {
   updateOpacity() {
     const hpPercentage = this.hp / this.maxHP;
     // Map HP from 100% to 0% onto alpha range 255 to 20
-    const minAlpha = 20;
+    const minAlpha = 50;
     const maxAlpha = 255;
     this._color.alpha = Math.round(
       minAlpha + (maxAlpha - minAlpha) * hpPercentage
