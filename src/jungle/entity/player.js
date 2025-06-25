@@ -7,6 +7,8 @@ class Player extends Entity {
 
     this.hp = 100;
     this._color = Color.white();
+    this.movementSpeed = 75; // Movement interval in milliseconds (lower = faster)
+    this.shootingSpeed = 333; // Shooting interval in milliseconds (lower = faster)
   }
 
   get color() {
