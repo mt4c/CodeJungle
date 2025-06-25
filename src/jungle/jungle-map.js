@@ -1,6 +1,8 @@
 const { Entity } = require("./entity/entity");
 const { Color } = require("./entity/color");
 const { Player } = require("./entity/player");
+const { Bullet } = require("./entity/bullet");
+const { Explosion } = require("./entity/explosion");
 const hljs = require("highlight.js");
 
 class JungleMap {
@@ -15,6 +17,8 @@ class JungleMap {
     this.paddingTop = 20; // Top padding
     this.player = null; // Player entity
     this.gameStarted = false; // Track if game has started
+    this.bullets = []; // Array of bullets
+    this.explosions = []; // Array of explosions
   }
 
   loadFromContent(content, filename = "") {
@@ -229,6 +233,20 @@ class JungleMap {
       }
     });
 
+    // Render explosions (behind everything else)
+    this.explosions.forEach((explosion) => {
+      if (explosion.active) {
+        explosion.render(ctx);
+      }
+    });
+
+    // Render bullets
+    this.bullets.forEach((bullet) => {
+      if (bullet.active) {
+        bullet.render(ctx);
+      }
+    });
+
     // Render player if game has started
     if (this.gameStarted && this.player) {
       console.log("Rendering player at:", this.player.position);
@@ -333,6 +351,136 @@ class JungleMap {
   stopGame() {
     this.gameStarted = false;
     this.player = null;
+    this.bullets = [];
+  }
+
+  update() {
+    if (!this.gameStarted) return;
+
+    // Update bullets
+    this.bullets.forEach((bullet) => {
+      if (bullet.active) {
+        bullet.update();
+
+        // Check if bullet is out of bounds
+        const mapDimensions = this.getMapDimensions();
+        if (
+          bullet.position.x < 0 ||
+          bullet.position.y < 0 ||
+          bullet.position.x > mapDimensions.width ||
+          bullet.position.y > mapDimensions.height
+        ) {
+          bullet.destroy();
+        } else {
+          // Check collision with entities and damage them
+          const hitEntity = this.getBulletHitEntity(
+            bullet.position.x,
+            bullet.position.y
+          );
+          if (hitEntity) {
+            const wasDestroyed = hitEntity.hp <= 10; // Will be destroyed after this hit
+            hitEntity.takeDamage(10);
+            bullet.destroy();
+
+            // Create explosion if entity was destroyed
+            if (wasDestroyed) {
+              const explosion = new Explosion({
+                x: hitEntity.position.x + this.cellWidth / 2,
+                y: hitEntity.position.y + this.cellHeight / 2,
+              });
+              this.explosions.push(explosion);
+              console.log("Entity destroyed! Explosion created.");
+            } else {
+              console.log("Bullet hit an entity! HP:", hitEntity.hp);
+            }
+          }
+        }
+      }
+    });
+
+    // Remove inactive bullets
+    this.bullets = this.bullets.filter((bullet) => bullet.active);
+
+    // Update explosions
+    this.explosions.forEach((explosion) => {
+      explosion.update();
+    });
+
+    // Remove finished explosions
+    this.explosions = this.explosions.filter(
+      (explosion) => !explosion.isFinished()
+    );
+
+    // Remove destroyed entities
+    this.entities = this.entities.filter((entity) => !entity.isDestroyed());
+  }
+
+  shootBullet(mouseX, mouseY) {
+    if (!this.player || !this.gameStarted) return;
+
+    // Calculate direction from player to mouse
+    const playerCenterX = this.player.position.x + this.player.radius;
+    const playerCenterY = this.player.position.y + this.player.radius;
+
+    const dx = mouseX - playerCenterX;
+    const dy = mouseY - playerCenterY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Normalize direction
+    const direction = {
+      x: dx / distance,
+      y: dy / distance,
+    };
+
+    // Create bullet at player position
+    const bullet = new Bullet(
+      {
+        x: playerCenterX - 1, // Center bullet on player
+        y: playerCenterY - 1,
+      },
+      direction
+    );
+
+    this.bullets.push(bullet);
+    console.log("Bullet fired toward:", { mouseX, mouseY });
+  }
+
+  isBulletCollision(bulletX, bulletY) {
+    if (!this.lastRenderedCanvas) {
+      return false;
+    }
+
+    const ctx = this.lastRenderedCanvas.context;
+
+    try {
+      // Check a few points around the bullet
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const checkX = Math.round(bulletX + dx);
+          const checkY = Math.round(bulletY + dy);
+
+          if (
+            checkX >= 0 &&
+            checkY >= 0 &&
+            checkX < this.lastRenderedCanvas.ele.width &&
+            checkY < this.lastRenderedCanvas.ele.height
+          ) {
+            const imageData = ctx.getImageData(checkX, checkY, 1, 1);
+            const [r, g, b, a] = imageData.data;
+
+            // If pixel is not background color, there's a collision
+            if (a > 0 && !(r === 30 && g === 30 && b === 30)) {
+              return true;
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error in bullet collision detection:", error);
+      return false;
+    }
+
+    return false;
   }
 
   movePlayer(deltaX, deltaY) {
@@ -467,6 +615,25 @@ class JungleMap {
     }
 
     return false;
+  }
+
+  getBulletHitEntity(bulletX, bulletY) {
+    // Find entity at bullet position
+    return this.entities.find((entity) => {
+      if (entity.isDestroyed()) return false;
+
+      // Check if bullet is within entity bounds
+      const entityCenterX = entity.position.x + this.cellWidth / 2;
+      const entityCenterY = entity.position.y + this.cellHeight / 2;
+
+      const dx = bulletX - entityCenterX;
+      const dy = bulletY - entityCenterY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      // Entity "radius" for collision
+      const entityRadius = Math.min(this.cellWidth, this.cellHeight) / 2;
+      return distance < entityRadius;
+    });
   }
 }
 

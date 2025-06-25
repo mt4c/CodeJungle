@@ -15,6 +15,7 @@ class Jungle {
     this.initOpen();
     this.initRun();
     this.initKeyboardControls();
+    this.initMouseControls();
 
     window.dispatchEvent(new Event("resize"));
   }
@@ -133,12 +134,31 @@ class Jungle {
   }
 
   render() {
+    if (this.started) {
+      // Handle continuous shooting
+      this.handleContinuousShooting();
+
+      // Update game state (bullets, etc.)
+      this.map.update();
+      this.needUpdate = true;
+    }
+
     if (this.needUpdate) {
       console.log("needUpdate is true, calling renderMap");
       this.renderMap();
       this.needUpdate = false;
     }
     window.requestAnimationFrame(this.render.bind(this));
+  }
+
+  handleContinuousShooting() {
+    if (this.mousePressed && this.started && !this.isLoading) {
+      const currentTime = Date.now();
+      if (currentTime - this.lastShotTime >= this.shootInterval) {
+        this.map.shootBullet(this.mouseX, this.mouseY);
+        this.lastShotTime = currentTime;
+      }
+    }
   }
 
   renderMap() {
@@ -200,6 +220,53 @@ class Jungle {
       this.map.movePlayer(deltaX, deltaY);
       this.needUpdate = true;
     }
+  }
+
+  initMouseControls() {
+    // Track mouse state for continuous shooting
+    this.mousePressed = false;
+    this.mouseX = 0;
+    this.mouseY = 0;
+    this.lastShotTime = 0;
+    this.shootInterval = 150; // Milliseconds between shots when holding
+
+    document.addEventListener("mousedown", (event) => {
+      if (!this.started || this.isLoading) {
+        return;
+      }
+
+      if (event.button === 0) {
+        // Left mouse button
+        this.mousePressed = true;
+
+        // Get mouse position relative to canvas
+        const rect = this.ui.canvas.ele.getBoundingClientRect();
+        this.mouseX = event.clientX - rect.left;
+        this.mouseY = event.clientY - rect.top;
+
+        // Shoot immediately
+        this.map.shootBullet(this.mouseX, this.mouseY);
+        this.lastShotTime = Date.now();
+        event.preventDefault();
+      }
+    });
+
+    document.addEventListener("mouseup", (event) => {
+      if (event.button === 0) {
+        this.mousePressed = false;
+      }
+    });
+
+    document.addEventListener("mousemove", (event) => {
+      if (!this.started || this.isLoading) {
+        return;
+      }
+
+      // Update mouse position for continuous shooting
+      const rect = this.ui.canvas.ele.getBoundingClientRect();
+      this.mouseX = event.clientX - rect.left;
+      this.mouseY = event.clientY - rect.top;
+    });
   }
 }
 
