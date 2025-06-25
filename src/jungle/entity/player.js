@@ -6,7 +6,8 @@ class Player extends Entity {
     super(position);
     this.speed = 2; // Movement speed in pixels
     this._color = new Color(255, 255, 0, 255); // Yellow color for better visibility
-    this.radius = 6; // Smaller radius - half the original size
+    this.radius = 3; // Collision radius - small for precise movement
+    this.renderRadius = 7; // Visual radius - larger for visibility
   }
 
   move(deltaX, deltaY) {
@@ -18,15 +19,15 @@ class Player extends Entity {
     // Save context
     ctx.save();
 
-    // Draw the player as a circle
+    // Draw the player as a circle using render radius for visibility
     ctx.fillStyle = `rgba(${this._color.red}, ${this._color.green}, ${
       this._color.blue
     }, ${this._color.alpha / 255})`;
     ctx.beginPath();
     ctx.arc(
-      this.position.x + this.radius,
+      this.position.x + this.radius, // Center based on collision radius
       this.position.y + this.radius,
-      this.radius,
+      this.renderRadius, // But draw with larger visual radius
       0,
       2 * Math.PI
     );

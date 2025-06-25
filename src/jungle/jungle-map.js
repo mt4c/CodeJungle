@@ -204,6 +204,9 @@ class JungleMap {
       return;
     }
 
+    // Store canvas reference for pixel collision detection
+    this.lastRenderedCanvas = canvas;
+
     const ctx = canvas.context;
 
     // Set background color similar to VS Code dark theme
@@ -350,34 +353,120 @@ class JungleMap {
 
       // Check if new position is within boundaries
       if (newX >= minX && newX <= maxX && newY >= minY && newY <= maxY) {
+        // Render scene without player to check for collisions
+        this.renderForCollisionCheck();
+
         // Check for collision with entities using pixel-based detection
         if (!this.isPixelCollision(newX, newY)) {
           this.player.move(deltaX, deltaY);
+        } else {
+          console.log("Movement blocked by collision");
         }
+      } else {
+        console.log("Movement blocked by boundaries");
       }
     }
   }
 
-  isPixelCollision(playerX, playerY) {
-    const playerRadius = this.player.radius;
-    const playerCenterX = playerX + playerRadius;
-    const playerCenterY = playerY + playerRadius;
+  renderForCollisionCheck() {
+    if (!this.lastRenderedCanvas || !this.lastRenderedCanvas.context) {
+      return;
+    }
 
-    // Check collision with each entity using circular collision detection
-    return this.entities.some((entity) => {
-      const entityCenterX = entity.position.x + this.cellWidth / 2;
-      const entityCenterY = entity.position.y + this.cellHeight / 2;
+    const ctx = this.lastRenderedCanvas.context;
 
-      // Calculate distance between player center and entity center
-      const dx = playerCenterX - entityCenterX;
-      const dy = playerCenterY - entityCenterY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
+    // Set background color similar to VS Code dark theme
+    ctx.fillStyle = "#1e1e1e";
+    ctx.fillRect(
+      0,
+      0,
+      this.lastRenderedCanvas.ele.width,
+      this.lastRenderedCanvas.ele.height
+    );
 
-      // Collision if distance is less than player radius plus entity "radius"
-      // Entity radius is roughly half the cell size
-      const entityRadius = Math.min(this.cellWidth, this.cellHeight) / 2;
-      return distance < playerRadius + entityRadius;
+    // Set font properties for character rendering
+    ctx.font = `${this.fontSize}px 'Consolas', 'Monaco', 'Courier New', monospace`;
+    ctx.textBaseline = "top";
+
+    // Render each entity as a character (without player)
+    this.entities.forEach((entity) => {
+      if (entity._color.alpha > 0) {
+        ctx.fillStyle = `rgba(${entity._color.red}, ${entity._color.green}, ${
+          entity._color.blue
+        }, ${entity._color.alpha / 255})`;
+
+        // Draw the character
+        ctx.fillText(entity.character, entity.position.x, entity.position.y);
+      }
     });
+  }
+
+  isPixelCollision(playerX, playerY) {
+    if (!this.lastRenderedCanvas) {
+      return false; // No canvas to check against
+    }
+
+    const playerRadius = this.player.radius;
+    const ctx = this.lastRenderedCanvas.context;
+
+    try {
+      // Check pixels around the player's circular area
+      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
+        // Check points around the circumference of the player
+        const checkX = Math.round(
+          playerX + playerRadius + Math.cos(angle) * (playerRadius - 1)
+        );
+        const checkY = Math.round(
+          playerY + playerRadius + Math.sin(angle) * (playerRadius - 1)
+        );
+
+        // Make sure we're within canvas bounds
+        if (
+          checkX >= 0 &&
+          checkY >= 0 &&
+          checkX < this.lastRenderedCanvas.ele.width &&
+          checkY < this.lastRenderedCanvas.ele.height
+        ) {
+          // Get pixel data at this position
+          const imageData = ctx.getImageData(checkX, checkY, 1, 1);
+          const [r, g, b, a] = imageData.data;
+
+          // If pixel is not background color (not #1e1e1e), there's a collision
+          if (a > 0 && !(r === 30 && g === 30 && b === 30)) {
+            console.log(
+              `Collision detected at (${checkX}, ${checkY}) with color rgba(${r}, ${g}, ${b}, ${a})`
+            );
+            return true;
+          }
+        }
+      }
+
+      // Also check center point
+      const centerX = Math.round(playerX + playerRadius);
+      const centerY = Math.round(playerY + playerRadius);
+
+      if (
+        centerX >= 0 &&
+        centerY >= 0 &&
+        centerX < this.lastRenderedCanvas.ele.width &&
+        centerY < this.lastRenderedCanvas.ele.height
+      ) {
+        const imageData = ctx.getImageData(centerX, centerY, 1, 1);
+        const [r, g, b, a] = imageData.data;
+
+        if (a > 0 && !(r === 30 && g === 30 && b === 30)) {
+          console.log(
+            `Center collision detected at (${centerX}, ${centerY}) with color rgba(${r}, ${g}, ${b}, ${a})`
+          );
+          return true;
+        }
+      }
+    } catch (error) {
+      console.error("Error in pixel collision detection:", error);
+      return false;
+    }
+
+    return false;
   }
 }
 
