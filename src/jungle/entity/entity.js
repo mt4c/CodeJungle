@@ -5,10 +5,6 @@ class Entity {
     this.position = position;
     this._color = Color.transparent();
   }
-
-  hit(bullet) {
-    // do nothing
-  }
 }
 
 module.exports = { Entity };
