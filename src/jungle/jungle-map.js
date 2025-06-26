@@ -3,6 +3,7 @@ const { Color } = require("./entity/color");
 const { Player } = require("./entity/player");
 const { Bullet } = require("./entity/bullet");
 const { Explosion } = require("./entity/explosion");
+const { Enemy } = require("./entity/enemy");
 const hljs = require("highlight.js");
 
 class JungleMap {
@@ -19,7 +20,11 @@ class JungleMap {
     this.gameStarted = false; // Track if game has started
     this.bullets = []; // Array of bullets
     this.explosions = []; // Array of explosions
+    this.enemies = []; // Array of enemies
     this.camera = { x: 0, y: 0 }; // Camera position for following player
+    this.lastEnemySpawnTime = 0; // Track when last enemy was spawned
+    this.enemySpawnInterval = 1000; // Spawn enemy every 1 second (1000ms)
+    this.maxEnemies = 5; // Maximum number of enemies
   }
 
   loadFromContent(content, filename = "") {
@@ -229,6 +234,22 @@ class JungleMap {
     // Render each entity as a character (spaces and tabs are not entities anymore)
     this.entities.forEach((entity) => {
       if (entity._color.alpha > 0) {
+        // Skip rendering if entity is an enemy and currently invisible (blinking)
+        if (entity.isEnemy && !entity.visible) {
+          return;
+        }
+
+        // Draw white shadow for enemies
+        if (entity.isEnemy) {
+          ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; // Semi-transparent white shadow
+          // Draw shadow slightly offset (2px down and right)
+          ctx.fillText(
+            entity.character,
+            entity.position.x + 2,
+            entity.position.y + 2
+          );
+        }
+
         ctx.fillStyle = `rgba(${entity._color.red}, ${entity._color.green}, ${
           entity._color.blue
         }, ${entity._color.alpha / 255})`;
@@ -410,10 +431,15 @@ class JungleMap {
     this.gameStarted = false;
     this.player = null;
     this.bullets = [];
+    this.enemies = [];
+    this.explosions = [];
   }
 
   update() {
     if (!this.gameStarted) return;
+
+    // Handle enemy spawning
+    this.handleEnemySpawning();
 
     // Update camera to follow player
     this.updateCamera();
@@ -469,8 +495,195 @@ class JungleMap {
       (explosion) => !explosion.isFinished()
     );
 
+    // Update enemy entities
+    this.enemies.forEach((enemy) => {
+      if (enemy.isEnemy) {
+        this.updateEnemyEntity(enemy);
+      }
+    });
+
+    // Remove destroyed enemies from the enemies array
+    this.enemies = this.enemies.filter((enemy) => !enemy.isDestroyed());
+
     // Remove destroyed entities
     this.entities = this.entities.filter((entity) => !entity.isDestroyed());
+  }
+
+  handleEnemySpawning() {
+    const currentTime = Date.now();
+
+    // Check if it's time to spawn a new enemy
+    if (currentTime - this.lastEnemySpawnTime >= this.enemySpawnInterval) {
+      // Only spawn if we have fewer than max enemies
+      const visibleEnemyCount = this.enemies.filter(
+        (enemy) => enemy.visible
+      ).length;
+      console.log(
+        `Enemy status: Total: ${this.enemies.length}, Visible: ${visibleEnemyCount}, Max: ${this.maxEnemies}`
+      );
+
+      if (this.enemies.length < this.maxEnemies) {
+        this.spawnEnemy();
+        this.lastEnemySpawnTime = currentTime;
+      } else {
+        console.log("Max enemies reached, not spawning new enemy");
+      }
+    }
+  }
+
+  spawnEnemy() {
+    if (!this.player || !this.lastRenderedCanvas) return;
+
+    // Find entities that are visible in the camera, not already enemies, not destroyed, and are renderable characters
+    const visibleEntities = this.getEntitiesInCamera().filter(
+      (entity) =>
+        !entity.isEnemy &&
+        !entity.isDestroyed() && // Exclude destroyed entities
+        entity.character &&
+        entity.character.trim().length > 0 && // Has non-whitespace character
+        entity._color &&
+        entity._color.alpha > 0 // Has visible color
+    );
+
+    console.log(
+      `Found ${visibleEntities.length} valid entities for enemy transformation`
+    );
+
+    if (visibleEntities.length === 0) {
+      console.log("No valid visible entities to transform into enemy");
+      return;
+    }
+
+    // Select a random visible entity to transform into an enemy
+    const randomEntity =
+      visibleEntities[Math.floor(Math.random() * visibleEntities.length)];
+
+    // Transform the existing entity into an enemy
+    this.transformEntityToEnemy(randomEntity);
+
+    console.log(
+      `Entity '${randomEntity.character}' transformed to enemy at position (${randomEntity.position.x}, ${randomEntity.position.y})`
+    );
+  }
+
+  transformEntityToEnemy(entity) {
+    // Mark entity as an enemy
+    entity.isEnemy = true;
+    entity.invincible = false;
+    entity.blinkTimer = 0;
+    entity.blinkDuration = 1000; // 1 second of blinking
+    entity.blinkInterval = 100; // Blink every 100ms
+    entity.visible = true;
+    entity.lastMoveTime = 0;
+    entity.moveDelay = 16; // Move every 16ms (~60fps)
+    entity.speed = 1; // Movement speed
+    entity.target = this.player; // Set player as target
+    entity.originalColor = { ...entity._color }; // Store original color
+
+    // Change color to red when becoming an enemy
+    entity._color = new Color(255, 0, 0, 255); // Red color
+
+    // Make the enemy invincible initially (it will start blinking)
+    this.makeEntityInvincible(entity);
+
+    // Add to enemies array for tracking
+    this.enemies.push(entity);
+  }
+
+  makeEntityInvincible(entity) {
+    entity.invincible = true;
+    entity.blinkTimer = 0;
+    entity.visible = true;
+    console.log("Entity became invincible and started blinking");
+  }
+
+  updateEnemyEntity(entity) {
+    const currentTime = Date.now();
+
+    // Handle invincibility and blinking
+    if (entity.invincible) {
+      entity.blinkTimer += 16; // Assume 60fps, so ~16ms per frame
+
+      // Blink effect - alternate visibility
+      if (entity.blinkTimer % entity.blinkInterval < entity.blinkInterval / 2) {
+        entity.visible = true;
+      } else {
+        entity.visible = false;
+      }
+
+      // End invincibility after duration
+      if (entity.blinkTimer >= entity.blinkDuration) {
+        entity.invincible = false;
+        entity.visible = true; // Ensure visibility is restored
+        entity.hp = 100; // Recover to full health
+        console.log(
+          "Enemy entity recovered from invincibility with full HP, visible:",
+          entity.visible
+        );
+      }
+    } else {
+      // Ensure non-invincible enemies are always visible
+      entity.visible = true;
+    }
+
+    // Move towards target if not invincible and enough time has passed
+    if (
+      !entity.invincible &&
+      entity.target &&
+      currentTime - entity.lastMoveTime >= entity.moveDelay
+    ) {
+      this.moveEntityTowardsTarget(entity);
+      entity.lastMoveTime = currentTime;
+    }
+  }
+
+  moveEntityTowardsTarget(entity) {
+    if (!entity.target) return;
+
+    // Calculate direction to target (player)
+    const targetCenterX = entity.target.position.x + entity.target.radius;
+    const targetCenterY = entity.target.position.y + entity.target.radius;
+    const entityCenterX = entity.position.x + this.cellWidth / 2;
+    const entityCenterY = entity.position.y + this.cellHeight / 2;
+
+    const dx = targetCenterX - entityCenterX;
+    const dy = targetCenterY - entityCenterY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Only move if not too close to target
+    if (distance > this.cellWidth + entity.target.radius + 10) {
+      // Normalize direction and apply speed
+      const moveX = (dx / distance) * entity.speed;
+      const moveY = (dy / distance) * entity.speed;
+
+      entity.position.x += moveX;
+      entity.position.y += moveY;
+    }
+  }
+
+  getEntitiesInCamera() {
+    if (!this.lastRenderedCanvas) return [];
+
+    const canvasWidth = this.lastRenderedCanvas.ele.width;
+    const canvasHeight = this.lastRenderedCanvas.ele.height;
+
+    // Calculate camera bounds
+    const cameraLeft = this.camera.x;
+    const cameraRight = this.camera.x + canvasWidth;
+    const cameraTop = this.camera.y;
+    const cameraBottom = this.camera.y + canvasHeight;
+
+    // Filter entities that are within camera bounds
+    return this.entities.filter((entity) => {
+      if (entity.isDestroyed()) return false;
+
+      return (
+        entity.position.x >= cameraLeft &&
+        entity.position.x <= cameraRight &&
+        entity.position.y >= cameraTop &&
+        entity.position.y <= cameraBottom
+      );
+    });
   }
 
   shootBullet(mouseX, mouseY) {
