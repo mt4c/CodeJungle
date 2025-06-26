@@ -355,27 +355,25 @@ class JungleMap {
     const maxAttempts = 100; // Prevent infinite loop
     let attempts = 0;
 
-    // Get canvas dimensions if available
-    const canvasWidth = this.lastRenderedCanvas?.ele?.width || 800;
-    const canvasHeight = this.lastRenderedCanvas?.ele?.height || 600;
-
-    // Calculate safe spawn area within visible canvas bounds
+    // Calculate safe spawn area within the entire map
     const playerRadius = 6; // Default radius for boundary calculation
     const safeMargin = 10;
 
     const minX = this.paddingLeft + safeMargin;
     const minY = this.paddingTop + safeMargin;
-    const maxX = Math.min(
-      this.width * this.cellWidth + this.paddingLeft - playerRadius * 2,
-      canvasWidth - playerRadius * 2 - safeMargin
-    );
-    const maxY = Math.min(
-      this.height * this.cellHeight + this.paddingTop - playerRadius * 2,
-      canvasHeight - playerRadius * 2 - safeMargin
-    );
+    const maxX =
+      this.width * this.cellWidth +
+      this.paddingLeft -
+      playerRadius * 2 -
+      safeMargin;
+    const maxY =
+      this.height * this.cellHeight +
+      this.paddingTop -
+      playerRadius * 2 -
+      safeMargin;
 
     while (attempts < maxAttempts) {
-      // Generate random position within safe visible area
+      // Generate random position anywhere in the map
       const x = Math.random() * (maxX - minX) + minX;
       const y = Math.random() * (maxY - minY) + minY;
 
@@ -383,7 +381,10 @@ class JungleMap {
       const tempPlayer = new Player({ x, y });
       this.player = tempPlayer; // Temporarily set for collision detection
 
-      // Check if this position has no collision
+      // Render area around this position for collision detection
+      this.renderForCollisionCheck(x, y);
+
+      // Check if this position has no collision using pixel detection
       if (!this.isPixelCollision(x, y)) {
         console.log(`Found spawn position after ${attempts + 1} attempts:`, {
           x,
@@ -395,7 +396,7 @@ class JungleMap {
       attempts++;
     }
 
-    // Fallback to safe top-left position within visible area
+    // Fallback to safe top-left position
     console.log(
       "Could not find collision-free spawn position, using safe default"
     );
@@ -565,8 +566,8 @@ class JungleMap {
 
       // Check if new position is within boundaries
       if (newX >= minX && newX <= maxX && newY >= minY && newY <= maxY) {
-        // Render scene without player to check for collisions
-        this.renderForCollisionCheck();
+        // Render area around player for collision detection
+        this.renderForCollisionCheck(newX, newY);
 
         // Check for collision with entities using pixel-based detection
         if (!this.isPixelCollision(newX, newY)) {
@@ -580,35 +581,99 @@ class JungleMap {
     }
   }
 
-  renderForCollisionCheck() {
+  isEntityCollision(playerX, playerY) {
+    if (!this.player) return false;
+
+    const playerRadius = this.player.radius;
+    const playerCenterX = playerX + playerRadius;
+    const playerCenterY = playerY + playerRadius;
+
+    // Check collision with all entities
+    return this.entities.some((entity) => {
+      if (entity.isDestroyed()) return false;
+
+      // Calculate entity bounds
+      const entityLeft = entity.position.x;
+      const entityRight = entity.position.x + this.cellWidth;
+      const entityTop = entity.position.y;
+      const entityBottom = entity.position.y + this.cellHeight;
+
+      // Check if player circle intersects with entity rectangle
+      const closestX = Math.max(
+        entityLeft,
+        Math.min(playerCenterX, entityRight)
+      );
+      const closestY = Math.max(
+        entityTop,
+        Math.min(playerCenterY, entityBottom)
+      );
+
+      const distanceX = playerCenterX - closestX;
+      const distanceY = playerCenterY - closestY;
+      const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+
+      return distance < playerRadius;
+    });
+  }
+
+  renderForCollisionCheck(playerX, playerY) {
     if (!this.lastRenderedCanvas || !this.lastRenderedCanvas.context) {
       return;
     }
 
     const ctx = this.lastRenderedCanvas.context;
+    const canvasWidth = this.lastRenderedCanvas.ele.width;
+    const canvasHeight = this.lastRenderedCanvas.ele.height;
 
     // Set background color similar to VS Code dark theme
     ctx.fillStyle = "#1e1e1e";
-    ctx.fillRect(
-      0,
-      0,
-      this.lastRenderedCanvas.ele.width,
-      this.lastRenderedCanvas.ele.height
-    );
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    // Calculate the area around the player to render for collision detection
+    const playerRadius = this.player.radius;
+    const checkRadius = playerRadius + 50; // Larger margin for safety
+
+    const minX = playerX - checkRadius;
+    const maxX = playerX + playerRadius * 2 + checkRadius;
+    const minY = playerY - checkRadius;
+    const maxY = playerY + playerRadius * 2 + checkRadius;
+
+    // Calculate offset to center the collision area in the canvas
+    const offsetX = canvasWidth / 2 - (playerX + playerRadius);
+    const offsetY = canvasHeight / 2 - (playerY + playerRadius);
 
     // Set font properties for character rendering
     ctx.font = `${this.fontSize}px 'Consolas', 'Monaco', 'Courier New', monospace`;
     ctx.textBaseline = "top";
 
-    // Render each entity as a character (without player)
+    // Render entities that are near the player position
     this.entities.forEach((entity) => {
       if (entity._color.alpha > 0) {
-        ctx.fillStyle = `rgba(${entity._color.red}, ${entity._color.green}, ${
-          entity._color.blue
-        }, ${entity._color.alpha / 255})`;
+        // Only render entities that are in the collision check area
+        if (
+          entity.position.x >= minX &&
+          entity.position.x <= maxX &&
+          entity.position.y >= minY &&
+          entity.position.y <= maxY
+        ) {
+          ctx.fillStyle = `rgba(${entity._color.red}, ${entity._color.green}, ${
+            entity._color.blue
+          }, ${entity._color.alpha / 255})`;
 
-        // Draw the character
-        ctx.fillText(entity.character, entity.position.x, entity.position.y);
+          // Draw the character at its position relative to the player (with offset)
+          const renderX = entity.position.x + offsetX;
+          const renderY = entity.position.y + offsetY;
+
+          // Only render if within canvas bounds
+          if (
+            renderX >= 0 &&
+            renderX < canvasWidth &&
+            renderY >= 0 &&
+            renderY < canvasHeight
+          ) {
+            ctx.fillText(entity.character, renderX, renderY);
+          }
+        }
       }
     });
   }
@@ -620,24 +685,32 @@ class JungleMap {
 
     const playerRadius = this.player.radius;
     const ctx = this.lastRenderedCanvas.context;
+    const canvasWidth = this.lastRenderedCanvas.ele.width;
+    const canvasHeight = this.lastRenderedCanvas.ele.height;
+
+    // Calculate the same offset used in renderForCollisionCheck
+    const offsetX = canvasWidth / 2 - (playerX + playerRadius);
+    const offsetY = canvasHeight / 2 - (playerY + playerRadius);
 
     try {
       // Check pixels around the player's circular area
       for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
-        // Check points around the circumference of the player
-        const checkX = Math.round(
-          playerX + playerRadius + Math.cos(angle) * (playerRadius - 1)
-        );
-        const checkY = Math.round(
-          playerY + playerRadius + Math.sin(angle) * (playerRadius - 1)
-        );
+        // Calculate world position first
+        const worldCheckX =
+          playerX + playerRadius + Math.cos(angle) * (playerRadius - 1);
+        const worldCheckY =
+          playerY + playerRadius + Math.sin(angle) * (playerRadius - 1);
+
+        // Convert to canvas coordinates using the offset
+        const checkX = Math.round(worldCheckX + offsetX);
+        const checkY = Math.round(worldCheckY + offsetY);
 
         // Make sure we're within canvas bounds
         if (
           checkX >= 0 &&
           checkY >= 0 &&
-          checkX < this.lastRenderedCanvas.ele.width &&
-          checkY < this.lastRenderedCanvas.ele.height
+          checkX < canvasWidth &&
+          checkY < canvasHeight
         ) {
           // Get pixel data at this position
           const imageData = ctx.getImageData(checkX, checkY, 1, 1);
@@ -646,7 +719,7 @@ class JungleMap {
           // If pixel is not background color (not #1e1e1e), there's a collision
           if (a > 0 && !(r === 30 && g === 30 && b === 30)) {
             console.log(
-              `Collision detected at (${checkX}, ${checkY}) with color rgba(${r}, ${g}, ${b}, ${a})`
+              `Collision detected at canvas(${checkX}, ${checkY}) world(${worldCheckX}, ${worldCheckY}) with color rgba(${r}, ${g}, ${b}, ${a})`
             );
             return true;
           }
@@ -654,21 +727,23 @@ class JungleMap {
       }
 
       // Also check center point
-      const centerX = Math.round(playerX + playerRadius);
-      const centerY = Math.round(playerY + playerRadius);
+      const worldCenterX = playerX + playerRadius;
+      const worldCenterY = playerY + playerRadius;
+      const centerX = Math.round(worldCenterX + offsetX);
+      const centerY = Math.round(worldCenterY + offsetY);
 
       if (
         centerX >= 0 &&
         centerY >= 0 &&
-        centerX < this.lastRenderedCanvas.ele.width &&
-        centerY < this.lastRenderedCanvas.ele.height
+        centerX < canvasWidth &&
+        centerY < canvasHeight
       ) {
         const imageData = ctx.getImageData(centerX, centerY, 1, 1);
         const [r, g, b, a] = imageData.data;
 
         if (a > 0 && !(r === 30 && g === 30 && b === 30)) {
           console.log(
-            `Center collision detected at (${centerX}, ${centerY}) with color rgba(${r}, ${g}, ${b}, ${a})`
+            `Center collision detected at canvas(${centerX}, ${centerY}) world(${worldCenterX}, ${worldCenterY}) with color rgba(${r}, ${g}, ${b}, ${a})`
           );
           return true;
         }
