@@ -19,6 +19,7 @@ class JungleMap {
     this.gameStarted = false; // Track if game has started
     this.bullets = []; // Array of bullets
     this.explosions = []; // Array of explosions
+    this.camera = { x: 0, y: 0 }; // Camera position for following player
   }
 
   loadFromContent(content, filename = "") {
@@ -217,6 +218,10 @@ class JungleMap {
     ctx.fillStyle = "#1e1e1e";
     ctx.fillRect(0, 0, canvas.ele.width, canvas.ele.height);
 
+    // Apply camera transform
+    ctx.save();
+    ctx.translate(-this.camera.x, -this.camera.y);
+
     // Set font properties for character rendering
     ctx.font = `${this.fontSize}px 'Consolas', 'Monaco', 'Courier New', monospace`;
     ctx.textBaseline = "top";
@@ -252,6 +257,43 @@ class JungleMap {
       console.log("Rendering player at:", this.player.position);
       this.player.render(ctx);
     }
+
+    // Restore camera transform
+    ctx.restore();
+  }
+
+  updateCamera() {
+    if (!this.player || !this.lastRenderedCanvas) return;
+
+    const canvasWidth = this.lastRenderedCanvas.ele.width;
+    const canvasHeight = this.lastRenderedCanvas.ele.height;
+
+    // Calculate desired camera position (center player in viewport)
+    const playerCenterX = this.player.position.x + this.player.radius;
+    const playerCenterY = this.player.position.y + this.player.radius;
+
+    const targetCameraX = playerCenterX - canvasWidth / 2;
+    const targetCameraY = playerCenterY - canvasHeight / 2;
+
+    // Get map bounds
+    const mapDimensions = this.getMapDimensions();
+
+    // Clamp camera to map boundaries
+    const minCameraX = 0;
+    const minCameraY = 0;
+    const maxCameraX = Math.max(0, mapDimensions.width - canvasWidth);
+    const maxCameraY = Math.max(0, mapDimensions.height - canvasHeight);
+
+    // Smooth camera movement (lerp)
+    const lerpFactor = 0.1;
+    this.camera.x +=
+      (Math.max(minCameraX, Math.min(maxCameraX, targetCameraX)) -
+        this.camera.x) *
+      lerpFactor;
+    this.camera.y +=
+      (Math.max(minCameraY, Math.min(maxCameraY, targetCameraY)) -
+        this.camera.y) *
+      lerpFactor;
   }
 
   getMapDimensions() {
@@ -372,6 +414,9 @@ class JungleMap {
   update() {
     if (!this.gameStarted) return;
 
+    // Update camera to follow player
+    this.updateCamera();
+
     // Update bullets
     this.bullets.forEach((bullet) => {
       if (bullet.active) {
@@ -430,12 +475,16 @@ class JungleMap {
   shootBullet(mouseX, mouseY) {
     if (!this.player || !this.gameStarted) return;
 
-    // Calculate direction from player to mouse
+    // Calculate direction from player to mouse (accounting for camera offset)
     const playerCenterX = this.player.position.x + this.player.radius;
     const playerCenterY = this.player.position.y + this.player.radius;
 
-    const dx = mouseX - playerCenterX;
-    const dy = mouseY - playerCenterY;
+    // Convert mouse coordinates to world coordinates
+    const worldMouseX = mouseX + this.camera.x;
+    const worldMouseY = mouseY + this.camera.y;
+
+    const dx = worldMouseX - playerCenterX;
+    const dy = worldMouseY - playerCenterY;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     // Normalize direction
@@ -454,7 +503,10 @@ class JungleMap {
     );
 
     this.bullets.push(bullet);
-    console.log("Bullet fired toward:", { mouseX, mouseY });
+    console.log("Bullet fired toward world coords:", {
+      worldMouseX,
+      worldMouseY,
+    });
   }
 
   isBulletCollision(bulletX, bulletY) {
