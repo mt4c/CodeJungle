@@ -4,8 +4,8 @@ class Entity {
   constructor(position) {
     this.position = position;
     this._color = Color.transparent();
-    this.maxHP = 100;
-    this.hp = 100;
+    this.maxHP = 5;
+    this.hp = 5;
   }
 
   takeDamage(damage) {

@@ -462,8 +462,8 @@ class JungleMap {
           // Check collision along bullet's path (continuous collision detection)
           const hitEntity = this.getBulletHitEntityAlongPath(bullet);
           if (hitEntity) {
-            const wasDestroyed = hitEntity.hp <= 20; // Will be destroyed after this hit
-            hitEntity.takeDamage(20);
+            const wasDestroyed = hitEntity.hp <= 1; // Will be destroyed after this hit
+            hitEntity.takeDamage(1); // 1 damage per bullet
             bullet.destroy();
 
             // Create explosion if entity was destroyed
@@ -615,9 +615,9 @@ class JungleMap {
       if (entity.blinkTimer >= entity.blinkDuration) {
         entity.invincible = false;
         entity.visible = true; // Ensure visibility is restored
-        entity.hp = 100; // Recover to full health
+        entity.hp = 5; // Recover to 5 HP
         console.log(
-          "Enemy entity recovered from invincibility with full HP, visible:",
+          "Enemy entity recovered from invincibility with 5 HP, visible:",
           entity.visible
         );
       }

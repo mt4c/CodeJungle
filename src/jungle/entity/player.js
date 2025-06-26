@@ -8,6 +8,8 @@ class Player extends Entity {
     this._color = new Color(255, 255, 0, 255); // Yellow color for better visibility
     this.radius = 3; // Collision radius - small for precise movement
     this.renderRadius = 7; // Visual radius - larger for visibility
+    this.maxHP = 10; // Player has 10 HP
+    this.hp = 10; // Player starts with 10 HP
   }
 
   move(deltaX, deltaY) {
