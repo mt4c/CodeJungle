@@ -390,8 +390,8 @@ class JungleMap {
           // Check collision along bullet's path (continuous collision detection)
           const hitEntity = this.getBulletHitEntityAlongPath(bullet);
           if (hitEntity) {
-            const wasDestroyed = hitEntity.hp <= 10; // Will be destroyed after this hit
-            hitEntity.takeDamage(10);
+            const wasDestroyed = hitEntity.hp <= 20; // Will be destroyed after this hit
+            hitEntity.takeDamage(20);
             bullet.destroy();
 
             // Create explosion if entity was destroyed

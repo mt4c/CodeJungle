@@ -135,6 +135,9 @@ class Jungle {
 
   render() {
     if (this.started) {
+      // Handle continuous movement every frame
+      this.handleMovement();
+
       // Handle continuous shooting
       this.handleContinuousShooting();
 
@@ -188,16 +191,17 @@ class Jungle {
       }
 
       const key = event.key.toLowerCase();
-      this.pressedKeys.add(key);
-
-      // Handle movement
-      this.handleMovement();
-      event.preventDefault();
+      if (["w", "a", "s", "d"].includes(key)) {
+        this.pressedKeys.add(key);
+        event.preventDefault();
+      }
     });
 
     document.addEventListener("keyup", (event) => {
       const key = event.key.toLowerCase();
-      this.pressedKeys.delete(key);
+      if (["w", "a", "s", "d"].includes(key)) {
+        this.pressedKeys.delete(key);
+      }
     });
   }
 
